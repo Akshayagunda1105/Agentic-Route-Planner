@@ -1,12 +1,16 @@
 import json
 
+from pydantic import ValidationError
+
 from app.services.gemini_service import GeminiService
 from app.prompts.parser_prompt import PARSER_PROMPT
+from app.models.route_models import RouteRequest
 
 
 class ParserAgent:
 
     def __init__(self):
+
         self.gemini = GeminiService()
 
     def parse(self, query: str):
@@ -35,10 +39,16 @@ class ParserAgent:
 
             result = json.loads(response)
 
-            return result
+            return RouteRequest(**result)
 
         except json.JSONDecodeError:
 
             raise ValueError(
                 "Gemini returned invalid JSON."
+            )
+
+        except ValidationError as e:
+
+            raise ValueError(
+                f"Invalid RouteRequest: {e}"
             )
