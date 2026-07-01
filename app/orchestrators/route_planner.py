@@ -1,6 +1,7 @@
 from app.agents.parser_agent import ParserAgent
 from app.agents.retriever_agent import RetrieverAgent
 from app.agents.optimizer_agent import OptimizerAgent
+from app.agents.reflection_agent import ReflectionAgent
 
 from app.services.route_plan_builder import RoutePlanBuilder
 
@@ -20,6 +21,8 @@ class RoutePlanner:
         self.builder = RoutePlanBuilder()
 
         self.optimizer = OptimizerAgent()
+
+        self.reflection = ReflectionAgent()
 
     def plan(
         self,
@@ -116,11 +119,17 @@ class RoutePlanner:
             route_plan
         )
 
+        reflection = self.reflection.evaluate(
+            optimization
+        )
+
         # Step 7 - Return workflow result
         return RoutePlanningResult(
 
-            success=True,
+            success=reflection.approved,
 
-            optimization=optimization
+            optimization=optimization,
 
-        )
+            reflection=reflection
+
+)
