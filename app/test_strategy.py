@@ -13,7 +13,15 @@ start = Location(
     longitude=78.47
 )
 
-destination = Location(
+nalgonda = Location(
+    name="Nalgonda",
+    district="Nalgonda",
+    subdistrict="Nalgonda",
+    latitude=17.05,
+    longitude=79.27
+)
+
+suryapet = Location(
     name="Suryapet",
     district="Suryapet",
     subdistrict="Suryapet",
@@ -21,9 +29,21 @@ destination = Location(
     longitude=79.73
 )
 
+kodad = Location(
+    name="Kodad",
+    district="Suryapet",
+    subdistrict="Kodad",
+    latitude=17.00,
+    longitude=79.97
+)
+
 plan = RoutePlan(
     start=start,
-    destinations=[destination]
+    destinations=[
+        suryapet,
+        kodad,
+        nalgonda
+    ]
 )
 
 strategy = NearestNeighborStrategy()

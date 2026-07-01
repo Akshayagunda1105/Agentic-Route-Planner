@@ -7,48 +7,31 @@ class DistanceService:
 
     @staticmethod
     def calculate(
-
-        loc1: Location,
-
-        loc2: Location
-
+        location1: Location,
+        location2: Location
     ) -> float:
 
-        R = 6371
+        earth_radius = 6371.0
 
-        lat1 = radians(loc1.latitude)
-        lon1 = radians(loc1.longitude)
+        lat1 = radians(location1.latitude)
+        lon1 = radians(location1.longitude)
 
-        lat2 = radians(loc2.latitude)
-        lon2 = radians(loc2.longitude)
+        lat2 = radians(location2.latitude)
+        lon2 = radians(location2.longitude)
 
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
+        delta_lat = lat2 - lat1
+        delta_lon = lon2 - lon1
 
         a = (
-
-            sin(dlat / 2) ** 2
-
-            +
-
-            cos(lat1)
-
-            *
-
-            cos(lat2)
-
-            *
-
-            sin(dlon / 2) ** 2
-
+            sin(delta_lat / 2) ** 2
+            + cos(lat1)
+            * cos(lat2)
+            * sin(delta_lon / 2) ** 2
         )
 
         c = 2 * atan2(
-
             sqrt(a),
-
             sqrt(1 - a)
-
         )
 
-        return R * c
+        return earth_radius * c
