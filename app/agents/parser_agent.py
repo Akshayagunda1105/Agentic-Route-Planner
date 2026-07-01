@@ -4,7 +4,7 @@ from pydantic import ValidationError
 
 from app.services.gemini_service import GeminiService
 from app.prompts.parser_prompt import PARSER_PROMPT
-from app.models.route_models import RouteRequest
+from app.models.route_request import RouteRequest
 
 
 class ParserAgent:
