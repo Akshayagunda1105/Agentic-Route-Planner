@@ -1,47 +1,27 @@
-from app.models.route_plan import RoutePlan
-from app.models.route_request import RouteRequest
+from typing import List
 
-from app.agents.retriever_agent import RetrieverAgent
+from app.models.location import Location
+from app.models.route_plan import RoutePlan
 
 
 class RoutePlanBuilder:
 
-    def __init__(self):
-
-        self.retriever = RetrieverAgent()
-
     def build(
         self,
-        request: RouteRequest
+        start: Location,
+        destination: Location,
+        waypoints: List[Location]
     ) -> RoutePlan:
 
-        start = self.retriever.resolve_location(
-            request.start
-        )
-
-        destination = self.retriever.resolve_location(
-            request.destination
-        )
-
-        destinations = []
-
-        for waypoint in request.waypoints:
-
-            result = self.retriever.resolve_location(
-                waypoint
-            )
-
-            destinations.append(
-                result.location
-            )
+        destinations = waypoints.copy()
 
         destinations.append(
-            destination.location
+            destination
         )
 
         return RoutePlan(
 
-            start=start.location,
+            start=start,
 
             destinations=destinations
 

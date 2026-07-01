@@ -12,7 +12,7 @@ class RetrieverTool:
         self.df = self.dataset.get_dataframe()
 
     # ==========================================
-    # Private Helper
+    # Convert Single Row -> Location
     # ==========================================
 
     def _row_to_location(
@@ -42,6 +42,52 @@ class RetrieverTool:
         )
 
     # ==========================================
+    # Build Representative Location
+    # ==========================================
+
+    def _build_representative_location(
+        self,
+        rows,
+        source: str
+    ):
+
+        if rows.empty:
+            return None
+
+        representative = rows.iloc[0]
+
+        if source == "district":
+
+            name = representative["district"]
+
+        elif source == "subdistrict":
+
+            name = representative["subdistric"]
+
+        else:
+
+            name = representative["village"]
+
+        return Location(
+
+            name=name,
+
+            district=representative["district"],
+
+            subdistrict=representative["subdistric"],
+
+            latitude=rows["latitude"].mean(),
+
+            longitude=rows["longitude"].mean(),
+
+            confidence=95.0 if source == "district" else 93.0,
+
+            score=95.0 if source == "district" else 93.0,
+
+            source=source
+        )
+
+    # ==========================================
     # Exact District Search
     # ==========================================
 
@@ -57,11 +103,9 @@ class RetrieverTool:
         if rows.empty:
             return None
 
-        row = rows.iloc[0]
-
-        return self._row_to_location(
-            row,
-            source="district"
+        return self._build_representative_location(
+            rows,
+            "district"
         )
 
     # ==========================================
@@ -80,11 +124,9 @@ class RetrieverTool:
         if rows.empty:
             return None
 
-        row = rows.iloc[0]
-
-        return self._row_to_location(
-            row,
-            source="subdistrict"
+        return self._build_representative_location(
+            rows,
+            "subdistrict"
         )
 
     # ==========================================
@@ -107,7 +149,8 @@ class RetrieverTool:
 
         return self._row_to_location(
             row,
-            source="village"
+            source="village",
+            score=100.0
         )
 
     # ==========================================
@@ -178,9 +221,13 @@ class RetrieverTool:
             row = rows.iloc[0]
 
             location = self._row_to_location(
+
                 row,
+
                 source="rapidfuzz",
+
                 score=score
+
             )
 
             candidates.append(location)
