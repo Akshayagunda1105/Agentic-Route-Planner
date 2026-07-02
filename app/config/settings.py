@@ -25,3 +25,7 @@ DATASET_PATH = "data/telangana_villages.csv"
 OUTPUT_FOLDER = "output"
 
 MAP_FILE = f"{OUTPUT_FOLDER}/route_map.html"
+
+OPENWEATHER_API_KEY = os.getenv(
+    "OPENWEATHER_API_KEY"
+)
