@@ -14,5 +14,3 @@ class WeatherInfo(BaseModel):
     humidity: int
 
     wind_speed: float
-
-    risk: str

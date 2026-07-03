@@ -14,6 +14,10 @@ from app.models.reflection_result import (
     ReflectionResult
 )
 
+from app.models.weather_analysis import (
+    WeatherAnalysis
+)
+
 
 class RoutePlanningResult(BaseModel):
 
@@ -21,6 +25,10 @@ class RoutePlanningResult(BaseModel):
 
     optimization: Optional[
         OptimizationResult
+    ] = None
+
+    weather: Optional[
+        WeatherAnalysis
     ] = None
 
     reflection: Optional[

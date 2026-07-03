@@ -1,6 +1,7 @@
 from app.agents.parser_agent import ParserAgent
 from app.agents.retriever_agent import RetrieverAgent
 from app.agents.optimizer_agent import OptimizerAgent
+from app.agents.weather_agent import WeatherAgent
 from app.agents.reflection_agent import ReflectionAgent
 
 from app.services.route_plan_builder import RoutePlanBuilder
@@ -21,6 +22,8 @@ class RoutePlanner:
         self.builder = RoutePlanBuilder()
 
         self.optimizer = OptimizerAgent()
+
+        self.weather = WeatherAgent()
 
         self.reflection = ReflectionAgent()
 
@@ -114,22 +117,31 @@ class RoutePlanner:
 
         )
 
-        # Step 6 - Optimize
+        # Step 6 - Optimize Route
         optimization = self.optimizer.optimize(
             route_plan
         )
 
-        reflection = self.reflection.evaluate(
+        # Step 7 - Analyze Weather
+        weather = self.weather.analyze(
             optimization
         )
 
-        # Step 7 - Return workflow result
+        # Step 8 - Reflect on the Route
+        reflection = self.reflection.evaluate(
+            optimization,
+            weather
+        )
+
+        # Step 9 - Return Final Result
         return RoutePlanningResult(
 
             success=reflection.approved,
 
             optimization=optimization,
 
+            weather=weather,
+
             reflection=reflection
 
-)
+        )
