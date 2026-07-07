@@ -1,12 +1,27 @@
+import { FaRoute } from "react-icons/fa";
+
 function Header() {
   return (
-    <header>
-      <h1>🛣 Agentic Route Planner</h1>
+    <header className="text-center mb-10">
 
-      <p>
-        AI-powered route optimization using
-        LangGraph, FastAPI and React
+      <div className="flex justify-center items-center gap-4">
+
+        <FaRoute
+          className="text-blue-600"
+          size={50}
+        />
+
+        <h1 className="text-5xl font-bold text-blue-600">
+          Agentic Route Planner
+        </h1>
+
+      </div>
+
+      <p className="mt-4 text-gray-600 text-lg">
+        AI-powered route optimization with
+        real-time weather intelligence
       </p>
+
     </header>
   );
 }

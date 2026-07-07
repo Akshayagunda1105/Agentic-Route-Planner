@@ -5,6 +5,9 @@ import QueryInput from "./components/QueryInput";
 import RouteCard from "./components/RouteCard";
 import DistanceCard from "./components/DistanceCard";
 import api from "./services/api";
+import WeatherCard from "./components/WeatherCard";
+import RecommendationCard from "./components/RecommendationCard";
+import LoadingSpinner from "./components/LoadingSpinner";
 
 function App() {
 
@@ -56,40 +59,53 @@ function App() {
 
   return (
 
-    <div>
+<div className="min-h-screen bg-slate-100">
 
-      <Header />
+<div className="max-w-6xl mx-auto p-10">
 
-      <QueryInput
+<Header/>
 
-        query={query}
+<QueryInput
 
-        setQuery={setQuery}
+query={query}
 
-        onSubmit={handleSubmit}
+setQuery={setQuery}
 
-      />
+onSubmit={handleSubmit}
 
-      {loading &&
+/>
 
-        <p>Planning route...</p>
+{loading && <LoadingSpinner />}
+{result && (
 
-      }
-
-      {result && (
-  <>
-    <RouteCard
-      optimization={result.optimization}
-    />
+<>
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
 
     <DistanceCard
       optimization={result.optimization}
     />
-  </>
-)}
-    </div>
 
-  );
+    <WeatherCard
+      weather={result.weather}
+    />
+
+  </div>
+
+  <RouteCard
+    optimization={result.optimization}
+  />
+
+  <RecommendationCard
+    weather={result.weather}
+  />
+</>
+)}
+
+</div>
+
+</div>
+
+);
 
 }
 

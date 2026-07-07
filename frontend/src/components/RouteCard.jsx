@@ -4,23 +4,53 @@ function RouteCard({ optimization }) {
 
   return (
 
-    <div>
+    <div className="bg-white rounded-2xl shadow-lg p-8 mt-8">
 
-      <h2>📍 Optimized Route</h2>
+      <h2 className="text-2xl font-bold mb-6">
 
-      {optimization.route.map((location, index) => (
+        📍 Optimized Route
 
-        <div key={index}>
+      </h2>
 
-          <p>{location.name}</p>
+      <div className="space-y-3">
 
-          {index !== optimization.route.length - 1 && (
-            <p>↓</p>
-          )}
+        {optimization.route.map((location, index) => (
 
-        </div>
+          <div
+            key={index}
+            className="flex flex-col items-center"
+          >
 
-      ))}
+            <div
+              className="
+              bg-blue-100
+              text-blue-700
+              px-6
+              py-3
+              rounded-full
+              font-semibold
+              "
+            >
+
+              {location.name}
+
+            </div>
+
+            {index !== optimization.route.length - 1 && (
+
+              <div className="text-3xl text-blue-500">
+
+                ↓
+
+              </div>
+
+            )}
+
+          </div>
+
+        ))}
+
+      </div>
 
     </div>
 
