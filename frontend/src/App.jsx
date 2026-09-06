@@ -8,6 +8,7 @@ import api from "./services/api";
 import WeatherCard from "./components/WeatherCard";
 import RecommendationCard from "./components/RecommendationCard";
 import LoadingSpinner from "./components/LoadingSpinner";
+import RouteMap from "./components/RouteMap";
 
 function App() {
 
@@ -145,6 +146,8 @@ onSubmit={handleSubmit}
   <RouteCard
     optimization={result.optimization}
   />
+
+  <RouteMap optimization={result.optimization} />
 
   <RecommendationCard
     weather={result.weather}

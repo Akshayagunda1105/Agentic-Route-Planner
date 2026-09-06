@@ -17,7 +17,7 @@ function DistanceCard({ optimization }) {
 
       <h2 className="text-2xl font-bold">
 
-        📏 Total Distance (straight-line estimate)
+        📏 Road distance
 
       </h2>
 
@@ -33,6 +33,12 @@ function DistanceCard({ optimization }) {
         {optimization.total_distance.toFixed(2)} km
 
       </p>
+
+      {optimization.total_duration != null && (
+        <p className="mt-3 text-lg text-gray-600">
+          Estimated travel time: {Math.round(optimization.total_duration)} min
+        </p>
+      )}
 
     </div>
 
