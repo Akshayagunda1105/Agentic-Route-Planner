@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.optimization_result import (
     OptimizationResult
@@ -37,6 +37,6 @@ class RoutePlanningResult(BaseModel):
 
     pending_locations: List[
         RetrievalResult
-    ] = []
+    ] = Field(default_factory=list)
 
-    errors: List[str] = []
+    errors: List[str] = Field(default_factory=list)

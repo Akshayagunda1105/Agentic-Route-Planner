@@ -9,6 +9,7 @@ from app.models.weather_info import WeatherInfo
 class WeatherService:
 
     BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+    WIND_SPEED_UNIT = "m/s"
 
     @classmethod
     def get_weather(
@@ -61,7 +62,5 @@ class WeatherService:
             humidity=humidity,
 
             wind_speed=wind_speed,
-
-            risk="Unknown"
 
         )

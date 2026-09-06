@@ -39,6 +39,7 @@ class RetrieverTool:
             score=score,
 
             source=source
+
         )
 
     # ==========================================
@@ -57,15 +58,12 @@ class RetrieverTool:
         representative = rows.iloc[0]
 
         if source == "district":
-
             name = representative["district"]
 
         elif source == "subdistrict":
-
             name = representative["subdistric"]
 
         else:
-
             name = representative["village"]
 
         return Location(
@@ -85,6 +83,7 @@ class RetrieverTool:
             score=95.0 if source == "district" else 93.0,
 
             source=source
+
         )
 
     # ==========================================
@@ -148,20 +147,23 @@ class RetrieverTool:
         row = rows.iloc[0]
 
         return self._row_to_location(
+
             row,
+
             source="village",
+
             score=100.0
+
         )
 
     # ==========================================
-    # Generic RapidFuzz Search
+    # Best RapidFuzz Match
     # ==========================================
 
-    def fuzzy_search(
+    def get_best_fuzzy_match(
         self,
         query: str,
-        column: str,
-        limit: int = 5
+        column: str
     ):
 
         values = (
@@ -176,60 +178,62 @@ class RetrieverTool:
 
         )
 
-        matches = process.extract(
+        match = process.extractOne(
 
             query,
 
             values,
 
-            scorer=fuzz.WRatio,
-
-            limit=limit
+            scorer=fuzz.WRatio
 
         )
 
-        return matches
+        if match is None:
+            return None
 
-    # ==========================================
-    # Convert RapidFuzz Matches -> Location Objects
-    # ==========================================
+        value, score, _ = match
 
-    def get_candidate_matches(
+        rows = self.df[
+            self.df[column] == value
+        ]
+
+        if rows.empty:
+            return None
+
+        row = rows.iloc[0]
+
+        return self._row_to_location(
+
+            row,
+
+            source="rapidfuzz",
+
+            score=score
+
+        )
+
+    def get_village_candidates(
         self,
-        query: str,
-        column: str,
-        limit: int = 5
+        village_name: str,
+        source: str = "village",
+        score: float = 100.0,
+        limit: int = 10
     ):
-
-        matches = self.fuzzy_search(
-            query,
-            column,
-            limit
-        )
-
+        """Return distinct places for a name instead of silently choosing row 0."""
+        rows = self.dataset.get_rows_by_village(village_name)
         candidates = []
+        seen = set()
 
-        for value, score, _ in matches:
-
-            rows = self.df[
-                self.df[column] == value
-            ]
-
-            if rows.empty:
-                continue
-
-            row = rows.iloc[0]
-
-            location = self._row_to_location(
-
-                row,
-
-                source="rapidfuzz",
-
-                score=score
-
+        for _, row in rows.iterrows():
+            identity = (
+                row["village"], row["district"], row["subdistric"],
+                row["latitude"], row["longitude"]
             )
-
-            candidates.append(location)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            candidates.append(self._row_to_location(row, source=source, score=score))
+            if len(candidates) == limit:
+                break
 
         return candidates

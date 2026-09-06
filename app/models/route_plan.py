@@ -9,4 +9,6 @@ class RoutePlan(BaseModel):
 
     start: Location
 
-    destinations: List[Location]
+    waypoints: List[Location]
+
+    destination: Location

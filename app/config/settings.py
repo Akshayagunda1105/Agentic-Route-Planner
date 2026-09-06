@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -16,15 +17,16 @@ MODEL_NAME = "gemini-2.5-flash"
 # Dataset
 # ==============================
 
-DATASET_PATH = "data/telangana_villages.csv"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATASET_PATH = PROJECT_ROOT / "data" / "telangana_villages.csv"
 
 # ==============================
 # Output
 # ==============================
 
-OUTPUT_FOLDER = "output"
+OUTPUT_FOLDER = PROJECT_ROOT / "output"
 
-MAP_FILE = f"{OUTPUT_FOLDER}/route_map.html"
+MAP_FILE = OUTPUT_FOLDER / "route_map.html"
 
 OPENWEATHER_API_KEY = os.getenv(
     "OPENWEATHER_API_KEY"

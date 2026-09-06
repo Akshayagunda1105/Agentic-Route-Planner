@@ -23,7 +23,9 @@ plan = RoutePlan(
 
     start=start,
 
-    destinations=[destination]
+    waypoints=[],
+
+    destination=destination
 
 )
 

@@ -17,7 +17,7 @@ function DistanceCard({ optimization }) {
 
       <h2 className="text-2xl font-bold">
 
-        📏 Total Distance
+        📏 Total Distance (straight-line estimate)
 
       </h2>
 

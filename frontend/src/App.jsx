@@ -17,6 +17,8 @@ function App() {
 
   const [loading, setLoading] = useState(false);
 
+  const [selections, setSelections] = useState({});
+
   const handleSubmit = async () => {
 
     if (!query.trim()) return;
@@ -30,7 +32,8 @@ function App() {
         "/plan-route",
 
         {
-          query: query
+          query,
+          selections
         }
 
       );
@@ -45,7 +48,7 @@ function App() {
 
       console.error(error);
 
-      alert("Failed to fetch route.");
+      alert(error.response?.data?.detail || "Failed to fetch route.");
 
     }
 
@@ -54,6 +57,15 @@ function App() {
       setLoading(false);
 
     }
+
+  };
+
+  const chooseLocation = (pendingQuery, location) => {
+
+    setSelections((current) => ({
+      ...current,
+      [pendingQuery]: location
+    }));
 
   };
 
@@ -76,6 +88,45 @@ onSubmit={handleSubmit}
 />
 
 {loading && <LoadingSpinner />}
+{result?.pending_locations?.map((pending) => (
+
+  <div
+    key={pending.query}
+    className="bg-amber-50 border border-amber-300 rounded-2xl p-6 mt-8"
+  >
+
+    <h2 className="text-xl font-bold">Choose a location</h2>
+
+    <p className="mt-2">{pending.message}</p>
+
+    <div className="grid gap-3 mt-4">
+
+      {pending.candidates.map((location) => (
+
+        <button
+          key={`${location.name}-${location.latitude}-${location.longitude}`}
+          onClick={() => chooseLocation(pending.query, location)}
+          className="text-left rounded-xl bg-white border p-4 hover:border-blue-600"
+        >
+          <strong>{location.name}</strong> — {location.subdistrict}, {location.district}
+        </button>
+
+      ))}
+
+    </div>
+
+    {pending.candidates.length > 0 && (
+      <button
+        onClick={handleSubmit}
+        className="mt-4 bg-blue-600 text-white rounded-xl px-5 py-3"
+      >
+        Continue with selection
+      </button>
+    )}
+
+  </div>
+
+))}
 {result && (
 
 <>

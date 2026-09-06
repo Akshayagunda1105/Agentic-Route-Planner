@@ -35,7 +35,7 @@ function WeatherCard({ weather }) {
 
               <p>Humidity: {report.weather.humidity}%</p>
 
-              <p>Wind Speed: {report.weather.wind_speed} km/h</p>
+              <p>Wind Speed: {report.weather.wind_speed} m/s</p>
 
             </div>
 

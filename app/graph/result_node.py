@@ -11,6 +11,30 @@ def result_node(
     state: RoutePlannerState
 ):
 
+    # -----------------------------------
+    # User clarification required
+    # -----------------------------------
+
+    if state.pending_locations:
+
+        result = RoutePlanningResult(
+
+            success=False,
+
+            pending_locations=state.pending_locations,
+
+            errors=[]
+
+        )
+
+        state.result = result
+
+        return state
+
+    # -----------------------------------
+    # Successful route planning
+    # -----------------------------------
+
     result = RoutePlanningResult(
 
         success=state.reflection.approved,
@@ -19,7 +43,11 @@ def result_node(
 
         weather=state.weather,
 
-        reflection=state.reflection
+        reflection=state.reflection,
+
+        pending_locations=[],
+
+        errors=[]
 
     )
 

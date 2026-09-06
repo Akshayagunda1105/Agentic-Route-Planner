@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.location import Location
 
@@ -13,6 +13,8 @@ class RetrievalResult(BaseModel):
 
     location: Optional[Location] = None
 
-    candidates: List[Location] = []
+    candidates: List[Location] = Field(default_factory=list)
 
     message: str = ""
+
+    query: Optional[str] = None

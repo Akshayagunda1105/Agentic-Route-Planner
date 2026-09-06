@@ -39,11 +39,11 @@ kodad = Location(
 
 plan = RoutePlan(
     start=start,
-    destinations=[
+    waypoints=[
         suryapet,
-        kodad,
-        nalgonda
-    ]
+        kodad
+    ],
+    destination=nalgonda
 )
 
 strategy = NearestNeighborStrategy()

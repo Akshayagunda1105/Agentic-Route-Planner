@@ -6,7 +6,6 @@ from app.state.route_planner_state import (
     RoutePlannerState
 )
 
-
 retriever = RetrieverAgent()
 
 
@@ -16,33 +15,47 @@ def retriever_node(
 
     request = state.request
 
+    def resolve(location_query):
+        selected = state.selections.get(location_query)
+        if selected:
+            from app.models.retrieval_result import RetrievalResult
+            return RetrievalResult(
+                resolved=True,
+                location=selected,
+                message="User-selected location."
+            )
+        return retriever.resolve_location(location_query)
+
     # Resolve start
-    start = retriever.resolve_location(
-        request.start
-    )
+    start = resolve(request.start)
 
     if not start.resolved:
-        raise Exception(start.message)
+
+        state.pending_locations = [start]
+
+        return state
 
     # Resolve destination
-    destination = retriever.resolve_location(
-        request.destination
-    )
+    destination = resolve(request.destination)
 
     if not destination.resolved:
-        raise Exception(destination.message)
+
+        state.pending_locations = [destination]
+
+        return state
 
     # Resolve waypoints
     waypoints = []
 
     for waypoint in request.waypoints:
 
-        result = retriever.resolve_location(
-            waypoint
-        )
+        result = resolve(waypoint)
 
         if not result.resolved:
-            raise Exception(result.message)
+
+            state.pending_locations = [result]
+
+            return state
 
         waypoints.append(
             result.location

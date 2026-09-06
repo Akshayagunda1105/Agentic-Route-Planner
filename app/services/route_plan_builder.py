@@ -13,16 +13,12 @@ class RoutePlanBuilder:
         waypoints: List[Location]
     ) -> RoutePlan:
 
-        destinations = waypoints.copy()
-
-        destinations.append(
-            destination
-        )
-
         return RoutePlan(
 
             start=start,
 
-            destinations=destinations
+            waypoints=waypoints.copy(),
+
+            destination=destination
 
         )

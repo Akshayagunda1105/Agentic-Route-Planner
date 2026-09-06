@@ -42,15 +42,15 @@ plan = RoutePlan(
 
     start=start,
 
-    destinations=[
+    waypoints=[
 
         suryapet,
 
-        kodad,
+        kodad
 
-        nalgonda
+    ],
 
-    ]
+    destination=nalgonda
 
 )
 

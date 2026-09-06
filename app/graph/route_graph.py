@@ -32,6 +32,9 @@ from app.graph.result_node import (
     result_node
 )
 
+from app.graph.conditions import (
+    retriever_condition
+)
 # -----------------------------------
 # Create Graph
 # -----------------------------------
@@ -64,8 +67,21 @@ builder.add_edge(START, "parser")
 
 builder.add_edge("parser", "retriever")
 
-builder.add_edge("retriever", "builder")
+builder.add_conditional_edges(
 
+    "retriever",
+
+    retriever_condition,
+
+    {
+
+        "continue": "builder",
+
+        "pending": "result"
+
+    }
+
+)
 builder.add_edge("builder", "optimizer")
 
 builder.add_edge("optimizer", "weather")

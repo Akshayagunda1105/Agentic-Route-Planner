@@ -26,7 +26,7 @@ class NearestNeighborStrategy(
         # Initial state
         current_location = route_plan.start
 
-        remaining_locations = route_plan.destinations.copy()
+        remaining_locations = route_plan.waypoints.copy()
 
         optimized_route = [current_location]
 
@@ -68,6 +68,13 @@ class NearestNeighborStrategy(
 
             # Move to the selected location
             current_location = nearest_location
+
+        # The requested destination is an endpoint, not a stop to reorder.
+        total_distance += DistanceService.calculate(
+            current_location,
+            route_plan.destination
+        )
+        optimized_route.append(route_plan.destination)
 
         end_time = time.perf_counter()
 
