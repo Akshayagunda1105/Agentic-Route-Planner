@@ -31,3 +31,6 @@ MAP_FILE = OUTPUT_FOLDER / "route_map.html"
 OPENWEATHER_API_KEY = os.getenv(
     "OPENWEATHER_API_KEY"
 )
+
+# Free-tier road-routing provider. Keep this key on the backend only.
+OPENROUTESERVICE_API_KEY = os.getenv("OPENROUTESERVICE_API_KEY")

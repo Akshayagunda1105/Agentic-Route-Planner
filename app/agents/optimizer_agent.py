@@ -11,6 +11,8 @@ from app.strategies.nearest_neighbor import (
     NearestNeighborStrategy
 )
 
+from app.services.routing_service import RoutingService
+
 
 class OptimizerAgent:
 
@@ -36,6 +38,15 @@ class OptimizerAgent:
 
     ) -> OptimizationResult:
 
-        return self.strategy.optimize(
-            route_plan
+        estimate = self.strategy.optimize(route_plan)
+        road_route = RoutingService.get_route(estimate.route)
+
+        return OptimizationResult(
+            route=estimate.route,
+            total_distance=road_route["distance_km"],
+            total_duration=road_route["duration_minutes"],
+            geometry=road_route["geometry"],
+            legs=road_route["legs"],
+            strategy="Nearest Neighbor + OpenRouteService",
+            execution_time=estimate.execution_time,
         )
