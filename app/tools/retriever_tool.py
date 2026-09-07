@@ -42,7 +42,7 @@ class RetrieverTool:
 
         )
 
-    # ==========================================
+        # ==========================================
     # Build Representative Location
     # ==========================================
 
@@ -57,14 +57,60 @@ class RetrieverTool:
 
         representative = rows.iloc[0]
 
+        # -------------------------------
+        # Prefer the headquarters/town
+        # with the same name as district
+        # -------------------------------
+
         if source == "district":
+
             name = representative["district"]
 
+            headquarters = rows[
+                rows["village"].str.lower()
+                == name.lower()
+            ]
+
+            if not headquarters.empty:
+
+                row = headquarters.iloc[0]
+
+                return self._row_to_location(
+                    row,
+                    source="district_hq",
+                    score=98.0
+                )
+
+        # -------------------------------
+        # Prefer town matching subdistrict
+        # -------------------------------
+
         elif source == "subdistrict":
+
             name = representative["subdistric"]
+
+            headquarters = rows[
+                rows["village"].str.lower()
+                == name.lower()
+            ]
+
+            if not headquarters.empty:
+
+                row = headquarters.iloc[0]
+
+                return self._row_to_location(
+                    row,
+                    source="subdistrict_hq",
+                    score=96.0
+                )
 
         else:
             name = representative["village"]
+
+        # -------------------------------
+        # Fallback to centroid only when
+        # no headquarters exists
+        # -------------------------------
 
         return Location(
 
@@ -78,14 +124,13 @@ class RetrieverTool:
 
             longitude=rows["longitude"].mean(),
 
-            confidence=95.0 if source == "district" else 93.0,
+            confidence=90.0,
 
-            score=95.0 if source == "district" else 93.0,
+            score=90.0,
 
-            source=source
+            source=f"{source}_centroid"
 
         )
-
     # ==========================================
     # Exact District Search
     # ==========================================
