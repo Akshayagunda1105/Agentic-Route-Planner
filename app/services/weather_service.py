@@ -64,13 +64,6 @@ class WeatherService:
         location: Location,
         target_time: datetime,
     ) -> WeatherInfo:
-        """
-        Return the forecast closest to the requested arrival time.
-
-        OpenWeather's standard forecast endpoint provides forecasts
-        at discrete time intervals. The forecast point closest to
-        target_time is selected.
-        """
 
         if target_time.tzinfo is None:
             raise ValueError(
@@ -125,6 +118,41 @@ class WeatherService:
             forecast_time=forecast_time,
         )
 
+    @classmethod
+    def get_weather_at_coordinates(
+        cls,
+        latitude: float,
+        longitude: float,
+        target_time: datetime | None = None,
+        name: str = "Road sample",
+    ) -> WeatherInfo:
+
+        """
+        Fetch weather for an arbitrary coordinate.
+
+        This is used for weather sampling along the actual road geometry,
+        where the sampled point may not correspond to a named waypoint.
+        """
+
+        location = Location(
+            name=name,
+            district="",
+            subdistrict="",
+            latitude=latitude,
+            longitude=longitude,
+            confidence=100.0,
+            score=100.0,
+            source="road_sample",
+        )
+
+        if target_time is None:
+            return cls.get_weather(location)
+
+        return cls.get_weather_at(
+            location,
+            target_time,
+        )
+
     @staticmethod
     def _select_closest_forecast(
         forecasts: list[dict],
@@ -149,9 +177,7 @@ class WeatherService:
             )
 
             difference = abs(
-                (
-                    forecast_time - target_time
-                ).total_seconds()
+                (forecast_time - target_time).total_seconds()
             )
 
             if (

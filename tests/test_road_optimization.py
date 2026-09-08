@@ -4,6 +4,7 @@ from app.agents.optimizer_agent import OptimizerAgent
 from app.models.location import Location
 from app.models.road_cost_matrix import RoadCostMatrix
 from app.models.weather_info import WeatherInfo
+from app.models.weather_risk import WeatherRisk
 from app.services.route_plan_builder import RoutePlanBuilder
 from app.services.routing_service import (
     RoutingProviderUnavailableError,
@@ -41,7 +42,7 @@ def road_matrix() -> RoadCostMatrix:
     # 1 = Geographic near
     # 2 = Road near
     # 3 = Destination
-    #
+
     # The geographically farther waypoint is much faster by road.
     return RoadCostMatrix(
         distance_meters=[
@@ -246,21 +247,51 @@ class FakeWeatherService:
             wind_speed=2.0,
         )
 
+    @classmethod
+    def get_weather_at_coordinates(
+        cls,
+        latitude,
+        longitude,
+        target_time=None,
+        name="Road sample",
+    ):
+        return WeatherInfo(
+            location=Location(
+                name=name,
+                district="",
+                subdistrict="",
+                latitude=latitude,
+                longitude=longitude,
+                source="road_sample",
+            ),
+            temperature=25.0,
+            condition="Clear",
+            humidity=50,
+            wind_speed=2.0,
+            forecast_time=target_time,
+        )
+
 
 class FakeWeatherRiskEngine:
     @classmethod
     def calculate_risk(cls, weather):
-        class Risk:
-            def __init__(self, score):
-                self.score = score
-
         # Make "Road near" extremely risky.
         #
         # This lets the test prove that weather affects route ordering.
         if weather.location.name == "Road near":
-            return Risk(100)
+            return WeatherRisk(
+                score=100,
+                level="high",
+                reasons=["Severe weather"],
+                recommendation="Avoid this location.",
+            )
 
-        return Risk(0)
+        return WeatherRisk(
+            score=0,
+            level="low",
+            reasons=[],
+            recommendation="Safe to travel.",
+        )
 
 
 class WeatherRoutingStub:
@@ -415,6 +446,30 @@ class TimeAwareWeatherService:
 
         return WeatherInfo(
             location=location,
+            temperature=25.0,
+            condition="Clear",
+            humidity=50,
+            wind_speed=2.0,
+            forecast_time=target_time,
+        )
+
+    @classmethod
+    def get_weather_at_coordinates(
+        cls,
+        latitude,
+        longitude,
+        target_time=None,
+        name="Road sample",
+    ):
+        return WeatherInfo(
+            location=Location(
+                name=name,
+                district="",
+                subdistrict="",
+                latitude=latitude,
+                longitude=longitude,
+                source="road_sample",
+            ),
             temperature=25.0,
             condition="Clear",
             humidity=50,

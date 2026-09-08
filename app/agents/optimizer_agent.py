@@ -13,18 +13,22 @@ from app.services.routing_service import (
 )
 from app.services.weather_service import WeatherService
 from app.services.weather_risk_engine import WeatherRiskEngine
+from app.services.route_weather_service import RouteWeatherService
+from app.services.route_weather_aggregator import RouteWeatherAggregator
 
 
 class OptimizerAgent:
 
     def __init__(
-        self,
-        strategy: OptimizationStrategy = None,
-        routing_service=RoutingService,
-        road_cost_metric: str = "duration",
-        weather_service=WeatherService,
-        weather_risk_engine=WeatherRiskEngine,
-    ):
+    self,
+    strategy: OptimizationStrategy = None,
+    routing_service=RoutingService,
+    road_cost_metric: str = "duration",
+    weather_service=WeatherService,
+    weather_risk_engine=WeatherRiskEngine,
+    route_weather_service=None,
+    route_weather_aggregator=None,
+):
         if strategy is None:
             strategy = NearestNeighborStrategy()
 
@@ -33,6 +37,20 @@ class OptimizerAgent:
         self.road_cost_metric = road_cost_metric
         self.weather_service = weather_service
         self.weather_risk_engine = weather_risk_engine
+        self.route_weather_service = (
+    route_weather_service
+    if route_weather_service is not None
+    else RouteWeatherService(
+        weather_service=weather_service,
+        weather_risk_engine=weather_risk_engine,
+    )
+)
+
+        self.route_weather_aggregator = (
+            route_weather_aggregator
+            if route_weather_aggregator is not None
+            else RouteWeatherAggregator()
+        )
 
     def optimize(
         self,
@@ -131,9 +149,36 @@ class OptimizerAgent:
             estimate.route
         )
 
+        # Evaluate weather along the actual routed road geometry.
+        #
+        # This is deliberately performed after the final route is selected.
+        # The road geometry is now available from OpenRouteService, so weather
+        # can be sampled between named waypoints instead of only at waypoints.
+        if weather_sensitive:
+            route_weather_segments = (
+                self._evaluate_route_weather(
+                    route=estimate.route,
+                    geometry=road_route["geometry"],
+                    total_duration_minutes=road_route[
+                        "duration_minutes"
+                    ],
+                    departure_time=parsed_departure_time,
+                )
+            )
+
+            # Calculate the overall route weather risk so that the result
+            # generation path has access to a route-level safety signal.
+            #
+            # The value is intentionally not added to OptimizationResult yet.
+            # A later model change will expose detailed weather information
+            # through the API.
+            self.route_weather_aggregator.calculate_route_risk(
+                route_weather_segments
+            )
+
         strategy_name = (
             "Nearest Neighbor + 2-opt "
-            "(weather-aware road costs)"
+            "(weather-aware road costs + road weather sampling)"
             if weather_sensitive
             else (
                 "Nearest Neighbor + 2-opt "
@@ -163,6 +208,34 @@ class OptimizerAgent:
             is_road_optimized=True,
             strategy=strategy_name,
             execution_time=estimate.execution_time,
+        )
+
+    def _evaluate_route_weather(
+        self,
+        route,
+        geometry,
+        total_duration_minutes: float,
+        departure_time: datetime | None,
+    ):
+        """
+        Evaluate weather along the complete routed road.
+
+        The current RouteWeatherService operates on one geometry at a time,
+        so the final route is evaluated as a complete road path here.
+
+        Arrival time at each weather sample is estimated proportionally
+        using the total route duration.
+        """
+
+        if not route:
+            return []
+
+        return self.route_weather_service.evaluate_route(
+            geometry=geometry,
+            origin=route[0],
+            destination=route[-1],
+            departure_time=departure_time,
+            duration_minutes=total_duration_minutes,
         )
 
     @staticmethod
