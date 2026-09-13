@@ -23,6 +23,7 @@ def location(name: str, latitude: float, longitude: float) -> Location:
     )
 
 
+@pytest.fixture
 def route_plan():
     start = location("Start", 0, 0)
     geographic_near = location("Geographic near", 0, 0.1)
@@ -60,8 +61,8 @@ def road_matrix() -> RoadCostMatrix:
     )
 
 
-def test_road_cost_order_can_differ_from_haversine_order():
-    plan = route_plan()
+def test_road_cost_order_can_differ_from_haversine_order(route_plan):
+    plan = route_plan
     strategy = NearestNeighborStrategy()
 
     geographic = strategy.optimize(plan)
@@ -91,7 +92,7 @@ def test_road_cost_order_can_differ_from_haversine_order():
     assert road.is_road_optimized is True
 
 
-def test_road_cost_matrix_with_unreachable_waypoint_fails():
+def test_road_cost_matrix_with_unreachable_waypoint_fails(route_plan):
     matrix = road_matrix()
 
     matrix.duration_seconds[0][2] = None
@@ -99,10 +100,96 @@ def test_road_cost_matrix_with_unreachable_waypoint_fails():
 
     with pytest.raises(ValueError, match="reachable"):
         NearestNeighborStrategy().optimize(
-            route_plan(),
+            route_plan,
             matrix,
             cost_metric="duration",
         )
+
+
+# -------------------------------------------------------------------
+# Alternative route generation tests
+# -------------------------------------------------------------------
+
+
+def test_alternative_order_returns_none_with_fewer_than_two_waypoints():
+    start = location("Start", 0, 0)
+    destination = location("Destination", 0, 2)
+
+    plan = RoutePlanBuilder().build(
+        start,
+        destination,
+        [location("Only waypoint", 0, 1)],
+    )
+
+    matrix = RoadCostMatrix(
+        distance_meters=[
+            [0, 1_000, 2_000],
+            [1_000, 0, 1_000],
+            [2_000, 1_000, 0],
+        ],
+        duration_seconds=[
+            [0, 100, 200],
+            [100, 0, 100],
+            [200, 100, 0],
+        ],
+    )
+
+    result = NearestNeighborStrategy().generate_alternative_order(
+        plan,
+        matrix,
+        cost_metric="duration",
+    )
+
+    assert result is None
+
+def test_alternative_order_keeps_start_and_destination_fixed(route_plan):
+    strategy = NearestNeighborStrategy()
+
+    # Use a matrix where the alternative generator can be evaluated
+    # independently from the routing provider.
+    matrix = road_matrix()
+
+    primary = strategy.optimize(
+        route_plan,
+        matrix,
+        cost_metric="duration",
+    )
+
+    alternative = strategy.generate_alternative_order(
+        route_plan,
+        matrix,
+        cost_metric="duration",
+    )
+
+    if alternative is not None:
+        assert alternative[0] == 0
+        assert alternative[-1] == 3
+
+        assert set(alternative) == set(primary.order)
+
+
+def test_alternative_order_is_deterministic(route_plan):
+    strategy = NearestNeighborStrategy()
+    matrix = road_matrix()
+
+    first = strategy.generate_alternative_order(
+        route_plan,
+        matrix,
+        cost_metric="duration",
+    )
+
+    second = strategy.generate_alternative_order(
+        route_plan,
+        matrix,
+        cost_metric="duration",
+    )
+
+    assert first == second
+
+
+# -------------------------------------------------------------------
+# Routing service stubs
+# -------------------------------------------------------------------
 
 
 class RoadRoutingStub:
@@ -136,13 +223,13 @@ class RoadRoutingStub:
         }
 
 
-def test_agent_uses_one_matrix_call_then_one_final_route_call():
+def test_agent_uses_one_matrix_call_then_one_final_route_call(route_plan):
     RoadRoutingStub.matrix_calls = 0
     RoadRoutingStub.route_calls = 0
 
     result = OptimizerAgent(
         routing_service=RoadRoutingStub
-    ).optimize(route_plan())
+    ).optimize(route_plan)
 
     assert RoadRoutingStub.matrix_calls == 1
     assert RoadRoutingStub.route_calls == 1
@@ -170,10 +257,10 @@ class UnavailableRoutingStub:
         )
 
 
-def test_agent_marks_haversine_fallback_when_matrix_is_unavailable():
+def test_agent_marks_haversine_fallback_when_matrix_is_unavailable(route_plan):
     result = OptimizerAgent(
         routing_service=UnavailableRoutingStub
-    ).optimize(route_plan())
+    ).optimize(route_plan)
 
     assert result.is_road_optimized is False
     assert result.ordering_cost_source == "geographic"
@@ -182,7 +269,10 @@ def test_agent_marks_haversine_fallback_when_matrix_is_unavailable():
     assert UnavailableRoutingStub.route_calls == 0
 
 
-def test_matrix_service_posts_all_locations_without_network(monkeypatch):
+def test_matrix_service_posts_all_locations_without_network(
+    monkeypatch,
+    route_plan,
+):
     class Response:
         ok = True
 
@@ -216,7 +306,7 @@ def test_matrix_service_posts_all_locations_without_network(monkeypatch):
     )
 
     matrix = RoutingService.get_road_cost_matrix(
-        route_plan().waypoints
+        route_plan.waypoints
     )
 
     assert captured["url"] == RoutingService.MATRIX_URL
@@ -225,6 +315,107 @@ def test_matrix_service_posts_all_locations_without_network(monkeypatch):
         "duration",
     ]
     assert matrix.duration_seconds == [[0, 34]]
+
+
+# -------------------------------------------------------------------
+# Optimizer alternative-route tests
+# -------------------------------------------------------------------
+
+
+class AlternativeRoutingStub:
+    matrix_calls = 0
+    route_calls = 0
+    routed_orders = []
+
+    @classmethod
+    def get_road_cost_matrix(cls, locations):
+        cls.matrix_calls += 1
+
+        return road_matrix()
+
+    @classmethod
+    def get_route(cls, locations):
+        cls.route_calls += 1
+
+        order = [place.name for place in locations]
+        cls.routed_orders.append(order)
+
+        return {
+            "distance_km": 5.0,
+            "duration_minutes": 3.0,
+            "geometry": [[0, 0], [1, 1]],
+            "legs": [],
+        }
+
+
+def test_optimizer_generate_alternative_uses_alternative_order(route_plan):
+    AlternativeRoutingStub.matrix_calls = 0
+    AlternativeRoutingStub.route_calls = 0
+    AlternativeRoutingStub.routed_orders = []
+
+    agent = OptimizerAgent(
+        routing_service=AlternativeRoutingStub
+    )
+
+    # Force the strategy to provide a known distinct waypoint order.
+    agent.strategy.generate_alternative_order = (
+        lambda route_plan, road_cost_matrix, cost_metric="duration": [
+            0,
+            1,
+            2,
+            3,
+        ]
+    )
+
+    result = agent.generate_alternative(
+        route_plan,
+        objective="duration",
+    )
+
+    assert result is not None
+
+    assert [place.name for place in result.route] == [
+        "Start",
+        "Geographic near",
+        "Road near",
+        "Destination",
+    ]
+
+    assert result.strategy == (
+        "Alternative Nearest Neighbor + 2-opt "
+        "(deterministic waypoint perturbation)"
+    )
+
+    assert AlternativeRoutingStub.route_calls >= 1
+
+    assert AlternativeRoutingStub.routed_orders[0] == [
+        "Start",
+        "Geographic near",
+        "Road near",
+        "Destination",
+    ]
+
+
+def test_optimizer_generate_alternative_returns_none_without_enough_waypoints():
+    start = location("Start", 0, 0)
+    destination = location("Destination", 0, 2)
+
+    plan = RoutePlanBuilder().build(
+        start,
+        destination,
+        [location("Only waypoint", 0, 1)],
+    )
+
+    agent = OptimizerAgent(
+        routing_service=AlternativeRoutingStub
+    )
+
+    result = agent.generate_alternative(
+        plan,
+        objective="duration",
+    )
+
+    assert result is None
 
 
 # -------------------------------------------------------------------
@@ -331,7 +522,7 @@ class WeatherRoutingStub:
         }
 
 
-def test_weather_can_change_waypoint_order():
+def test_weather_can_change_waypoint_order(route_plan):
     """
     Without weather:
 
@@ -358,7 +549,7 @@ def test_weather_can_change_waypoint_order():
         weather_service=FakeWeatherService,
         weather_risk_engine=FakeWeatherRiskEngine,
     ).optimize(
-        route_plan(),
+        route_plan,
         objective="weather_aware",
         weather_sensitive=True,
         weather_weight=0.3,
@@ -392,7 +583,9 @@ def test_weather_can_change_waypoint_order():
     assert result.is_road_optimized is True
 
 
-def test_weather_is_not_called_when_weather_sensitive_is_disabled():
+def test_weather_is_not_called_when_weather_sensitive_is_disabled(
+    route_plan,
+):
     FakeWeatherService.calls = []
 
     OptimizerAgent(
@@ -400,7 +593,7 @@ def test_weather_is_not_called_when_weather_sensitive_is_disabled():
         weather_service=FakeWeatherService,
         weather_risk_engine=FakeWeatherRiskEngine,
     ).optimize(
-        route_plan(),
+        route_plan,
         objective="duration",
         weather_sensitive=False,
     )
@@ -408,7 +601,7 @@ def test_weather_is_not_called_when_weather_sensitive_is_disabled():
     assert FakeWeatherService.calls == []
 
 
-def test_weather_is_called_for_all_route_locations():
+def test_weather_is_called_for_all_route_locations(route_plan):
     FakeWeatherService.calls = []
 
     OptimizerAgent(
@@ -416,7 +609,7 @@ def test_weather_is_called_for_all_route_locations():
         weather_service=FakeWeatherService,
         weather_risk_engine=FakeWeatherRiskEngine,
     ).optimize(
-        route_plan(),
+        route_plan,
         objective="weather_aware",
         weather_sensitive=True,
         weather_weight=0.3,
@@ -485,7 +678,7 @@ class TimeAwareWeatherService:
         )
 
 
-def test_departure_time_uses_arrival_time_weather_forecast():
+def test_departure_time_uses_arrival_time_weather_forecast(route_plan):
     TimeAwareWeatherService.calls = []
 
     result = OptimizerAgent(
@@ -493,7 +686,7 @@ def test_departure_time_uses_arrival_time_weather_forecast():
         weather_service=TimeAwareWeatherService,
         weather_risk_engine=FakeWeatherRiskEngine,
     ).optimize(
-        route_plan(),
+        route_plan,
         objective="weather_aware",
         weather_sensitive=True,
         weather_weight=0.3,
@@ -549,7 +742,7 @@ def test_departure_time_uses_arrival_time_weather_forecast():
     )
 
 
-def test_timezone_less_departure_time_is_rejected():
+def test_timezone_less_departure_time_is_rejected(route_plan):
     with pytest.raises(
         ValueError,
         match="timezone",
@@ -559,7 +752,7 @@ def test_timezone_less_departure_time_is_rejected():
             weather_service=TimeAwareWeatherService,
             weather_risk_engine=FakeWeatherRiskEngine,
         ).optimize(
-            route_plan(),
+            route_plan,
             objective="weather_aware",
             weather_sensitive=True,
             weather_weight=0.3,

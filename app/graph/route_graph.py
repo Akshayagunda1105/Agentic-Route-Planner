@@ -28,6 +28,10 @@ from app.graph.reflection_node import (
     reflection_node
 )
 
+from app.graph.alternatives_node import (
+    alternatives_node
+)
+
 from app.graph.result_node import (
     result_node
 )
@@ -60,6 +64,8 @@ builder.add_node("optimizer", optimizer_node)
 builder.add_node("weather", weather_node)
 
 builder.add_node("reflection", reflection_node)
+
+builder.add_node("alternatives", alternatives_node)
 
 builder.add_node("result", result_node)
 
@@ -108,10 +114,25 @@ builder.add_conditional_edges(
     reflection_condition,
     {
         "retry": "optimizer",
+        "alternatives": "alternatives",
         "result": "result"
     }
 )
 
+
+# -----------------------------------
+# Alternatives
+# -----------------------------------
+
+builder.add_edge(
+    "alternatives",
+    "result"
+)
+
+
+# -----------------------------------
+# Result
+# -----------------------------------
 
 builder.add_edge(
     "result",

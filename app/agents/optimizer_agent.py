@@ -11,6 +11,7 @@ from app.services.routing_service import (
     RoutingProviderUnavailableError,
     RoutingService,
 )
+
 from app.services.weather_service import WeatherService
 from app.services.weather_risk_engine import WeatherRiskEngine
 from app.services.route_weather_service import RouteWeatherService
@@ -20,15 +21,16 @@ from app.services.route_weather_aggregator import RouteWeatherAggregator
 class OptimizerAgent:
 
     def __init__(
-    self,
-    strategy: OptimizationStrategy = None,
-    routing_service=RoutingService,
-    road_cost_metric: str = "duration",
-    weather_service=WeatherService,
-    weather_risk_engine=WeatherRiskEngine,
-    route_weather_service=None,
-    route_weather_aggregator=None,
-):
+        self,
+        strategy: OptimizationStrategy = None,
+        routing_service=RoutingService,
+        road_cost_metric: str = "duration",
+        weather_service=WeatherService,
+        weather_risk_engine=WeatherRiskEngine,
+        route_weather_service=None,
+        route_weather_aggregator=None,
+    ):
+
         if strategy is None:
             strategy = NearestNeighborStrategy()
 
@@ -37,14 +39,15 @@ class OptimizerAgent:
         self.road_cost_metric = road_cost_metric
         self.weather_service = weather_service
         self.weather_risk_engine = weather_risk_engine
+
         self.route_weather_service = (
-    route_weather_service
-    if route_weather_service is not None
-    else RouteWeatherService(
-        weather_service=weather_service,
-        weather_risk_engine=weather_risk_engine,
-    )
-)
+            route_weather_service
+            if route_weather_service is not None
+            else RouteWeatherService(
+                weather_service=weather_service,
+                weather_risk_engine=weather_risk_engine,
+            )
+        )
 
         self.route_weather_aggregator = (
             route_weather_aggregator
@@ -95,7 +98,9 @@ class OptimizerAgent:
                     locations
                 )
             )
+
         except RoutingProviderUnavailableError as error:
+
             fallback = self.strategy.optimize(route_plan)
 
             return fallback.model_copy(
@@ -115,6 +120,7 @@ class OptimizerAgent:
         optimization_matrix = road_cost_matrix
 
         if weather_sensitive:
+
             # First create a road-only route. We need this provisional
             # ordering to estimate when the vehicle reaches each location.
             provisional_estimate = self.strategy.optimize(
@@ -155,6 +161,7 @@ class OptimizerAgent:
         # The road geometry is now available from OpenRouteService, so weather
         # can be sampled between named waypoints instead of only at waypoints.
         if weather_sensitive:
+
             route_weather_segments = (
                 self._evaluate_route_weather(
                     route=estimate.route,
@@ -210,6 +217,169 @@ class OptimizerAgent:
             execution_time=estimate.execution_time,
         )
 
+    def generate_alternative(
+        self,
+        route_plan: RoutePlan,
+        objective: str = "duration",
+        weather_sensitive: bool = False,
+        weather_weight: float = 0.3,
+        departure_time: str | None = None,
+    ) -> OptimizationResult | None:
+        """
+        Generate a genuinely different optimized route candidate.
+
+        The start and destination remain fixed.
+
+        The method first obtains the primary optimized route, then asks
+        the optimization strategy to generate a deterministic alternative
+        waypoint ordering. The alternative is routed through the same
+        routing provider and returned as an OptimizationResult.
+
+        Returns None when a different feasible ordering cannot be found.
+        """
+
+        if objective not in {
+            "distance",
+            "duration",
+            "weather_aware",
+        }:
+            raise ValueError(
+                "Objective must be 'distance', 'duration', or "
+                "'weather_aware'."
+            )
+
+        if not 0.0 <= weather_weight <= 1.0:
+            raise ValueError(
+                "weather_weight must be between 0.0 and 1.0."
+            )
+
+        if objective == "weather_aware":
+            weather_sensitive = True
+
+        # An alternative ordering requires at least two waypoints.
+        if len(route_plan.waypoints) < 2:
+            return None
+
+        parsed_departure_time = self._parse_departure_time(
+            departure_time
+        )
+
+        locations = [
+            route_plan.start,
+            *route_plan.waypoints,
+            route_plan.destination,
+        ]
+
+        try:
+            road_cost_matrix = (
+                self.routing_service.get_road_cost_matrix(
+                    locations
+                )
+            )
+
+        except RoutingProviderUnavailableError:
+            return None
+
+        ordering_metric = self._get_ordering_metric(
+            objective
+        )
+
+        optimization_matrix = road_cost_matrix
+
+        if weather_sensitive:
+
+            # Use the same provisional route logic as the primary
+            # optimizer so that weather-aware costs remain consistent.
+            provisional_estimate = self.strategy.optimize(
+                route_plan,
+                road_cost_matrix=road_cost_matrix,
+                cost_metric=ordering_metric,
+            )
+
+            arrival_times = self._calculate_arrival_times(
+                provisional_estimate.route,
+                road_cost_matrix,
+                locations,
+                parsed_departure_time,
+            )
+
+            optimization_matrix = (
+                self._build_weather_aware_matrix(
+                    locations=locations,
+                    road_cost_matrix=road_cost_matrix,
+                    weather_weight=weather_weight,
+                    arrival_times=arrival_times,
+                )
+            )
+
+        alternative_order = (
+            self.strategy.generate_alternative_order(
+                route_plan=route_plan,
+                road_cost_matrix=optimization_matrix,
+                cost_metric=ordering_metric,
+            )
+        )
+
+        if alternative_order is None:
+            return None
+
+        alternative_route = [
+            locations[index]
+            for index in alternative_order
+        ]
+
+        road_route = self.routing_service.get_route(
+            alternative_route
+        )
+
+        primary = self.optimize(
+            route_plan=route_plan,
+            objective=objective,
+            weather_sensitive=weather_sensitive,
+            weather_weight=weather_weight,
+            departure_time=departure_time,
+        )
+
+        primary_names = [
+            location.name
+            for location in primary.route
+        ]
+
+        alternative_names = [
+            location.name
+            for location in alternative_route
+        ]
+
+        if primary_names == alternative_names:
+            return None
+
+        return OptimizationResult(
+            route=alternative_route,
+            total_distance=road_route["distance_km"],
+            total_duration=road_route["duration_minutes"],
+            geometry=road_route["geometry"],
+            legs=road_route["legs"],
+            geographic_distance=None,
+            road_distance=road_route["distance_km"],
+            road_duration=road_route["duration_minutes"],
+            ordering_cost_source=(
+                "weather_adjusted_road_network"
+                if weather_sensitive
+                else "road_network"
+            ),
+            ordering_cost_metric=(
+                "weather_adjusted_duration"
+                if weather_sensitive
+                else ordering_metric
+            ),
+            is_road_optimized=True,
+            strategy=(
+                "Alternative Nearest Neighbor + 2-opt "
+                "(deterministic waypoint perturbation)"
+            ),
+            execution_time=0.0,
+        )
+
     def _evaluate_route_weather(
         self,
         route,
@@ -250,7 +420,9 @@ class OptimizerAgent:
             parsed = datetime.fromisoformat(
                 departure_time
             )
+
         except ValueError as error:
+
             raise ValueError(
                 "departure_time must be a valid ISO-8601 datetime."
             ) from error
@@ -304,6 +476,7 @@ class OptimizerAgent:
             route,
             route[1:],
         ):
+
             origin_index = location_to_index[id(origin)]
             destination_index = location_to_index[id(destination)]
 
@@ -342,11 +515,14 @@ class OptimizerAgent:
             )
 
             if target_time is not None:
+
                 weather = self.weather_service.get_weather_at(
                     location,
                     target_time,
                 )
+
             else:
+
                 # Preserve the existing behavior when the user
                 # does not provide a departure time.
                 weather = self.weather_service.get_weather(
@@ -369,6 +545,7 @@ class OptimizerAgent:
         for origin_index, origin_row in enumerate(
             road_cost_matrix.duration_seconds
         ):
+
             adjusted_row = []
 
             for destination_index, duration in enumerate(

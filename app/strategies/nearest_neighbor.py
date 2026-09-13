@@ -18,6 +18,9 @@ class NearestNeighborStrategy(OptimizationStrategy):
 
     When no matrix is supplied, the strategy falls back to geographic
     Haversine distance. The result is explicitly marked as a fallback.
+
+    The strategy also supports deterministic generation of an alternative
+    waypoint ordering for human-in-the-loop route comparison.
     """
 
     def __init__(
@@ -44,6 +47,145 @@ class NearestNeighborStrategy(OptimizationStrategy):
             )
 
         return self._optimize_with_geographic_distance(route_plan)
+
+    def generate_alternative_order(
+        self,
+        route_plan: RoutePlan,
+        road_cost_matrix: RoadCostMatrix,
+        cost_metric: str = "duration",
+    ) -> list[int] | None:
+        """
+        Generate a deterministic alternative waypoint ordering.
+
+        The start and destination remain fixed.
+
+        The primary route is first generated using the existing
+        Nearest Neighbor + 2-opt strategy. Then deterministic
+        waypoint-order perturbations are tested.
+
+        Each candidate is locally improved with the existing 2-opt
+        implementation.
+
+        Returns:
+            A different feasible route ordering as a list of location
+            indices, or None when no different feasible ordering exists.
+        """
+
+        if cost_metric not in {"distance", "duration"}:
+            raise ValueError(
+                "Road cost metric must be 'distance' or 'duration'."
+            )
+
+        locations = [
+            route_plan.start,
+            *route_plan.waypoints,
+            route_plan.destination,
+        ]
+
+        expected_size = len(locations)
+
+        self._validate_matrix(
+            road_cost_matrix,
+            expected_size,
+        )
+
+        if len(route_plan.waypoints) < 2:
+            return None
+
+        primary_result = self.optimize(
+            route_plan,
+            road_cost_matrix=road_cost_matrix,
+            cost_metric=cost_metric,
+        )
+
+        location_to_index = {
+            id(location): index
+            for index, location in enumerate(locations)
+        }
+
+        primary_order = [
+            location_to_index[id(location)]
+            for location in primary_result.route
+        ]
+
+        metric_matrix = (
+            road_cost_matrix.duration_seconds
+            if cost_metric == "duration"
+            else road_cost_matrix.distance_meters
+        )
+
+        waypoint_count = len(route_plan.waypoints)
+
+        # ---------------------------------------------------------
+        # Deterministic perturbations
+        #
+        # Try adjacent swaps first, followed by larger reversals.
+        # This creates controlled alternatives rather than random
+        # routes.
+        # ---------------------------------------------------------
+
+        candidate_orders = []
+
+        # Adjacent waypoint swaps.
+        for position in range(1, waypoint_count):
+            candidate = primary_order.copy()
+
+            candidate[position], candidate[position + 1] = (
+                candidate[position + 1],
+                candidate[position],
+            )
+
+            candidate_orders.append(candidate)
+
+        # Reversal of progressively larger waypoint sections.
+        for start in range(1, waypoint_count):
+            for end in range(
+                start + 2,
+                waypoint_count + 1,
+            ):
+                candidate = primary_order.copy()
+
+                candidate[start:end] = reversed(
+                    candidate[start:end]
+                )
+
+                candidate_orders.append(candidate)
+
+        primary_tuple = tuple(primary_order)
+
+        for candidate_order in candidate_orders:
+
+            if tuple(candidate_order) == primary_tuple:
+                continue
+
+            candidate_cost = self._route_cost(
+                metric_matrix,
+                candidate_order,
+            )
+
+            if candidate_cost == float("inf"):
+                continue
+
+            improved_order = self._two_opt(
+                candidate_order,
+                metric_matrix,
+                max_iterations=self.max_2opt_iterations,
+            )
+
+            if tuple(improved_order) == primary_tuple:
+                continue
+
+            improved_cost = self._route_cost(
+                metric_matrix,
+                improved_order,
+            )
+
+            if improved_cost == float("inf"):
+                continue
+
+            return improved_order
+
+        return None
 
     def _optimize_with_geographic_distance(
         self,
@@ -382,4 +524,3 @@ class NearestNeighborStrategy(OptimizationStrategy):
             raise ValueError(
                 "Road-cost matrix does not match the route locations."
             )
-

@@ -28,11 +28,9 @@ class WeatherAgent:
 
         reports = []
 
-        highest_score = 0
+        overall_risk = None
 
-        overall_risk = "Low"
-
-        recommendation = "Safe to travel."
+        recommendation = "No weather data available."
 
         for location in optimization.route:
 
@@ -45,22 +43,20 @@ class WeatherAgent:
             )
 
             report = WeatherReport(
-
                 weather=weather,
-
                 risk=risk
-
             )
 
             reports.append(
                 report
             )
 
-            if risk.score > highest_score:
+            if (
+                overall_risk is None
+                or risk.score > overall_risk.score
+            ):
 
-                highest_score = risk.score
-
-                overall_risk = risk.level
+                overall_risk = risk
 
                 recommendation = (
                     risk.recommendation

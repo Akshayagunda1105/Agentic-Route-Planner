@@ -45,6 +45,12 @@ def result_node(
 
         reflection=state.reflection,
 
+        options=state.options,
+
+        selection_required=state.selection_required,
+
+        selected_option_id=state.selected_option_id,
+
         pending_locations=[],
 
         errors=[]
