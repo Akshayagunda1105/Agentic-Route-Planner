@@ -159,31 +159,64 @@ function App() {
 
             <div className="grid gap-3 mt-4">
 
-              {pending.candidates.map((location) => (
+              {pending.candidates.map((location) => {
 
-                <button
-                  key={`${location.name}-${location.latitude}-${location.longitude}`}
-                  onClick={() =>
-                    chooseLocation(
-                      pending.query,
-                      location
-                    )
-                  }
-                  className="text-left rounded-xl bg-white border p-4 hover:border-blue-600"
-                >
+                const selectedLocation =
+                  selections[pending.query];
 
-                  <strong>
-                    {location.name}
-                  </strong>
+                const isSelected =
+                  selectedLocation &&
+                  selectedLocation.latitude === location.latitude &&
+                  selectedLocation.longitude === location.longitude;
 
-                  {" — "}
+                return (
 
-                  {location.subdistrict},{" "}
-                  {location.district}
+                  <button
+                    key={`${location.name}-${location.latitude}-${location.longitude}`}
+                    onClick={() =>
+                      chooseLocation(
+                        pending.query,
+                        location
+                      )
+                    }
+                    className={`text-left rounded-xl border-2 p-4 bg-white transition ${
+                      isSelected
+                        ? "border-blue-600 ring-2 ring-blue-200"
+                        : "border-slate-200 hover:border-blue-400"
+                    }`}
+                  >
 
-                </button>
+                    <div className="flex items-center justify-between">
 
-              ))}
+                      <div>
+
+                        <strong>
+                          {location.name}
+                        </strong>
+
+                        {" — "}
+
+                        {location.subdistrict},{" "}
+                        {location.district}
+
+                      </div>
+
+
+                      {isSelected && (
+
+                        <span className="ml-4 text-sm font-semibold text-blue-600 whitespace-nowrap">
+                          ✓ Selected
+                        </span>
+
+                      )}
+
+                    </div>
+
+                  </button>
+
+                );
+
+              })}
 
             </div>
 
@@ -192,7 +225,12 @@ function App() {
 
               <button
                 onClick={handleSubmit}
-                className="mt-4 bg-blue-600 text-white rounded-xl px-5 py-3"
+                disabled={!selections[pending.query]}
+                className={`mt-4 rounded-xl px-5 py-3 text-white ${
+                  selections[pending.query]
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-gray-400 cursor-not-allowed"
+                }`}
               >
                 Continue with selection
               </button>
