@@ -6,10 +6,16 @@ optimizer = OptimizerAgent()
 
 
 def optimizer_node(state: RoutePlannerState):
+
     if state.route_plan is None:
         raise ValueError(
             "Route plan is required before optimization."
         )
+
+    # Increment the replan counter only when the optimizer
+    # is being called again after a reflection retry.
+    if state.reflection is not None and state.reflection.should_retry:
+        state.replan_attempt += 1
 
     request = state.request
 

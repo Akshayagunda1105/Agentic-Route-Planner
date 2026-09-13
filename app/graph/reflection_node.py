@@ -18,7 +18,9 @@ def reflection_node(
 
         state.optimization,
 
-        state.weather
+        state.weather,
+
+        replan_attempt=state.replan_attempt
 
     )
 

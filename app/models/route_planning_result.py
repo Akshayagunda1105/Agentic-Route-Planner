@@ -19,6 +19,23 @@ from app.models.weather_analysis import (
 )
 
 
+class RoutePlanningOption(BaseModel):
+
+    option_id: str
+
+    label: str
+
+    description: str
+
+    optimization: OptimizationResult
+
+    weather: Optional[
+        WeatherAnalysis
+    ] = None
+
+    weather_risk_score: Optional[float] = None
+
+
 class RoutePlanningResult(BaseModel):
 
     success: bool
@@ -34,6 +51,14 @@ class RoutePlanningResult(BaseModel):
     reflection: Optional[
         ReflectionResult
     ] = None
+
+    options: List[
+        RoutePlanningOption
+    ] = Field(default_factory=list)
+
+    selection_required: bool = False
+
+    selected_option_id: Optional[str] = None
 
     pending_locations: List[
         RetrievalResult

@@ -9,10 +9,8 @@ from app.models.optimization_result import OptimizationResult
 from app.models.weather_analysis import WeatherAnalysis
 from app.models.reflection_result import ReflectionResult
 from app.models.route_planning_result import RoutePlanningResult
-
-from typing import List
-
 from app.models.retrieval_result import RetrievalResult
+
 
 class RoutePlannerState(BaseModel):
 
@@ -27,23 +25,47 @@ class RoutePlannerState(BaseModel):
 
     destination_location: Optional[Location] = None
 
-    waypoint_locations: List[Location] = Field(default_factory=list)
+    waypoint_locations: List[Location] = Field(
+        default_factory=list
+    )
 
     # Builder output
     route_plan: Optional[RoutePlan] = None
 
-    # Optimizer output
+    # Primary optimizer output
     optimization: Optional[OptimizationResult] = None
 
-    # Weather output
+    # Primary weather output
     weather: Optional[WeatherAnalysis] = None
 
     # Reflection output
     reflection: Optional[ReflectionResult] = None
 
-    pending_locations: List[RetrievalResult] = Field(default_factory=list)
+    # Alternative route candidates generated when
+    # critical weather risk requires user choice.
+    options: List = Field(
+        default_factory=list
+    )
 
-    selections: Dict[str, Location] = Field(default_factory=dict)
+    # Indicates that the user must choose between
+    # route candidates before planning is complete.
+    selection_required: bool = False
+
+    # ID of the route option selected by the user.
+    selected_option_id: Optional[str] = None
+
+    # Number of replanning cycles already requested.
+    # Kept for compatibility with the existing graph.
+    replan_attempt: int = 0
+
+    # Retriever state
+    pending_locations: List[RetrievalResult] = Field(
+        default_factory=list
+    )
+
+    selections: Dict[str, Location] = Field(
+        default_factory=dict
+    )
 
     # Final output
     result: Optional[RoutePlanningResult] = None

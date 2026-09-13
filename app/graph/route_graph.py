@@ -33,13 +33,17 @@ from app.graph.result_node import (
 )
 
 from app.graph.conditions import (
-    retriever_condition
+    retriever_condition,
+    reflection_condition
 )
+
+
 # -----------------------------------
 # Create Graph
 # -----------------------------------
 
 builder = StateGraph(RoutePlannerState)
+
 
 # -----------------------------------
 # Register Nodes
@@ -59,6 +63,7 @@ builder.add_node("reflection", reflection_node)
 
 builder.add_node("result", result_node)
 
+
 # -----------------------------------
 # Connect Nodes
 # -----------------------------------
@@ -67,30 +72,52 @@ builder.add_edge(START, "parser")
 
 builder.add_edge("parser", "retriever")
 
+
 builder.add_conditional_edges(
-
     "retriever",
-
     retriever_condition,
-
     {
-
         "continue": "builder",
-
         "pending": "result"
-
     }
-
 )
-builder.add_edge("builder", "optimizer")
 
-builder.add_edge("optimizer", "weather")
 
-builder.add_edge("weather", "reflection")
+builder.add_edge(
+    "builder",
+    "optimizer"
+)
 
-builder.add_edge("reflection", "result")
+builder.add_edge(
+    "optimizer",
+    "weather"
+)
 
-builder.add_edge("result", END)
+builder.add_edge(
+    "weather",
+    "reflection"
+)
+
+
+# -----------------------------------
+# Reflection Routing
+# -----------------------------------
+
+builder.add_conditional_edges(
+    "reflection",
+    reflection_condition,
+    {
+        "retry": "optimizer",
+        "result": "result"
+    }
+)
+
+
+builder.add_edge(
+    "result",
+    END
+)
+
 
 # -----------------------------------
 # Compile Graph

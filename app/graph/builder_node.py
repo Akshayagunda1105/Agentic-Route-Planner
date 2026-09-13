@@ -7,23 +7,34 @@ from app.state.route_planner_state import (
 )
 
 
-builder = RoutePlanBuilder()
+route_plan_builder = RoutePlanBuilder()
 
 
 def builder_node(
     state: RoutePlannerState
 ):
+    """
+    Build a RoutePlan from the locations resolved by the
+    retriever.
 
-    route_plan = builder.build(
+    The builder node only constructs the route plan. It does not
+    perform optimization or make routing decisions.
+    """
 
-        state.start_location,
+    if state.start_location is None:
+        raise ValueError(
+            "Start location is required before building the route."
+        )
 
-        state.destination_location,
+    if state.destination_location is None:
+        raise ValueError(
+            "Destination location is required before building the route."
+        )
 
-        state.waypoint_locations
-
+    state.route_plan = route_plan_builder.build(
+        start=state.start_location,
+        destination=state.destination_location,
+        waypoints=state.waypoint_locations,
     )
-
-    state.route_plan = route_plan
 
     return state
